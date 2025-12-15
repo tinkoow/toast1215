@@ -3,121 +3,143 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>tinytoast 吐司商店</title>
+    <title>欢迎光临 | Brand Name</title>
     <style>
-        html, body {
+        /* 全局复位 */
+        * {
             margin: 0;
             padding: 0;
-            height: 100%;
+            box-sizing: border-box;
+        }
+
+        body, html {
             width: 100%;
-            overflow: hidden;
-            font-family: sans-serif;
+            height: 100%;
+            overflow: hidden; /* 防止出现滚动条 */
+            background-color: #ffffff; /* 图片未加载时的背景色，建议改为图片主色调 */
         }
 
-        /* 渐变动画背景 */
-        body {
-            background: linear-gradient(-45deg, #ffffff, #dbd2ab, #ffffff, #dbd2ab);
-            background-size: 400% 400%;
-            animation: gradientBG 15s ease infinite;
-        }
-
-        @keyframes gradientBG {
-            0% { background-position: 0% 50%; }
-            50% { background-position: 100% 50%; }
-            100% { background-position: 0% 50%; }
-        }
-
-        /* 粒子动画画布 */
-        #particles {
+        /* 背景图容器 */
+        .bg-container {
             position: absolute;
+            top: 0;
+            left: 0;
             width: 100%;
             height: 100%;
-            z-index: 0;
-        }
-
-        /* logo 居中 */
-        .logo-container {
-            position: relative;
             z-index: 1;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            height: 100%;
-            width: 100%;
+
+            /* 核心背景逻辑 */
+            background-image: url('./web_cover.jpg'); 
+            background-repeat: no-repeat;
+            
+            /* 解析：
+               top center: 始终顶对齐、水平居中
+               auto 900px: 宽度自动，高度强制固定为900px (满足手机端保持高度的需求)
+            */
+            background-position: top center;
+            background-size: auto 900px;
         }
 
-        .logo-container img {
-            max-width: 80%;
-            height: auto;
+        /* 雪花画布，覆盖在背景之上 */
+        canvas#snow {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 2; /* 确保雪花在背景图上面 */
+            pointer-events: none; /* 让鼠标事件穿透雪花，不影响交互 */
         }
     </style>
 </head>
 <body>
-    <!-- 粒子动画画布 -->
-    <canvas id="particles"></canvas>
 
-    <!-- logo -->
-    <div class="logo-container">
-        <img src="web_cover.jpg" alt="tinytoast logo">
-    </div>
+    <div class="bg-container"></div>
 
-    <!-- 粒子动画脚本 -->
+    <canvas id="snow"></canvas>
+
     <script>
-        const canvas = document.getElementById('particles');
+        // 获取画布
+        const canvas = document.getElementById('snow');
         const ctx = canvas.getContext('2d');
-        let width = canvas.width = window.innerWidth;
-        let height = canvas.height = window.innerHeight;
 
-        const particlesArray = [];
-        const particlesCount = 80;
+        // 设置画布大小
+        let width = window.innerWidth;
+        let height = window.innerHeight;
+        canvas.width = width;
+        canvas.height = height;
 
-        class Particle {
-            constructor() {
-                this.x = Math.random() * width;
-                this.y = Math.random() * height;
-                this.size = Math.random() * 3 + 1;
-                this.speedX = (Math.random() - 0.5) * 1.5;
-                this.speedY = (Math.random() - 0.5) * 1.5;
-            }
-            update() {
-                this.x += this.speedX;
-                this.y += this.speedY;
-
-                if(this.x > width) this.x = 0;
-                if(this.x < 0) this.x = width;
-                if(this.y > height) this.y = 0;
-                if(this.y < 0) this.y = height;
-            }
-            draw() {
-                ctx.fillStyle = '#ffffff';
-                ctx.beginPath();
-                ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
-                ctx.fill();
-            }
-        }
-
-        function initParticles() {
-            for(let i = 0; i < particlesCount; i++) {
-                particlesArray.push(new Particle());
-            }
-        }
-
-        function animateParticles() {
-            ctx.clearRect(0, 0, width, height);
-            particlesArray.forEach(p => {
-                p.update();
-                p.draw();
-            });
-            requestAnimationFrame(animateParticles);
-        }
-
+        // 监听窗口大小变化，重置画布
         window.addEventListener('resize', () => {
-            width = canvas.width = window.innerWidth;
-            height = canvas.height = window.innerHeight;
+            width = window.innerWidth;
+            height = window.innerHeight;
+            canvas.width = width;
+            canvas.height = height;
         });
 
-        initParticles();
-        animateParticles();
+        // 雪花参数配置
+        const flakeCount = 100; // 雪花数量，可根据需要调整
+        const flakes = [];
+
+        class Flake {
+            constructor() {
+                this.init();
+            }
+
+            init() {
+                this.x = Math.random() * width;
+                this.y = Math.random() * height;
+                // 空间感核心：大小不一
+                this.radius = Math.random() * 3 + 1; // 半径 1px 到 4px
+                // 速度稍缓，大的落得稍快一点点，符合物理直觉
+                this.speed = Math.random() * 0.5 + 0.5 + (this.radius * 0.1); 
+                // 透明度不一，模拟远近
+                this.opacity = Math.random() * 0.5 + 0.3; 
+                // 水平摆动参数
+                this.sway = Math.random() * 0.05 - 0.025; 
+            }
+
+            update() {
+                this.y += this.speed;
+                this.x += this.sway;
+
+                // 循环逻辑：如果雪花落出屏幕底部，重置到顶部
+                if (this.y > height) {
+                    this.y = -10;
+                    this.x = Math.random() * width;
+                }
+                // 如果雪花飘出左右边界，尝试循环（可选）
+                if (this.x > width) this.x = 0;
+                if (this.x < 0) this.x = width;
+            }
+
+            draw() {
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+                ctx.fillStyle = `rgba(255, 255, 255, ${this.opacity})`; // 白色雪花
+                ctx.fill();
+                ctx.closePath();
+            }
+        }
+
+        // 初始化雪花
+        for (let i = 0; i < flakeCount; i++) {
+            flakes.push(new Flake());
+        }
+
+        // 动画循环
+        function animate() {
+            ctx.clearRect(0, 0, width, height); // 清空画布
+            
+            flakes.forEach(flake => {
+                flake.update();
+                flake.draw();
+            });
+
+            requestAnimationFrame(animate);
+        }
+
+        animate();
     </script>
 </body>
 </html>
